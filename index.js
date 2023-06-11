@@ -55,6 +55,9 @@ async function run() {
     await client.connect();
     const classCollection = client.db("yogaDB").collection("classes");
     const instructorsCollection = client.db("yogaDB").collection("instructors");
+    const instructorsCollectionFeedback = client
+      .db("yogaDB")
+      .collection("instructorsFeedback");
     const usersCollection = client.db("yogaDB").collection("users");
 
     //jwt
@@ -176,18 +179,13 @@ async function run() {
       res.send(result);
     });
 
-
     // for home page all  approved class
     app.get("/approvedClasses", async (req, res) => {
-      
-      const query = {status:"approved"}
-      const cursor = classCollection.find(query)
+      const query = { status: "approved" };
+      const cursor = classCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
     });
-
-
-
 
     // form admin page all classes
     app.get("/instructor/classes", async (req, res) => {
@@ -202,11 +200,9 @@ async function run() {
       res.send(result);
     });
 
-
-
     // update class status
 
-    app.patch("/classes/:id", async (req, res) => {     
+    app.patch("/classes/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const updatedDoc = {
@@ -218,35 +214,18 @@ async function run() {
       res.send(result);
     });
 
-
-   
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     //instructors api
     app.get("/instructors", async (req, res) => {
       const cursor = instructorsCollection.find();
       const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    //send feedbak to instructor
+
+    app.post("/feedbackInstructor", async (req, res) => {
+      const feedback = req.body;
+      const result = await instructorsCollectionFeedback.insertOne(feedback);
       res.send(result);
     });
 
