@@ -55,10 +55,9 @@ async function run() {
     await client.connect();
     const classCollection = client.db("yogaDB").collection("classes");
     const instructorsCollection = client.db("yogaDB").collection("instructors");
-    const instructorsCollectionFeedback = client
-      .db("yogaDB")
-      .collection("instructorsFeedback");
+    const instructorsCollectionFeedback = client.db("yogaDB").collection("instructorsFeedback");
     const usersCollection = client.db("yogaDB").collection("users");
+    const mySelectClassCollection = client.db("yogaDB").collection("mySelectClass");
 
     //jwt
 
@@ -199,6 +198,21 @@ async function run() {
       const result = await classCollection.insertOne(newClass);
       res.send(result);
     });
+
+    //my Select class api
+    app.post("/mySelectClasses", async (req, res) => {
+      const mySelectClass = req.body;
+      console.log({mySelectClass})
+      const result = await mySelectClassCollection.insertOne(mySelectClass);
+      res.send(result);
+    });
+    //my Select class api
+    app.get("/mySelectClasses", async (req, res) => {   
+      const result = await mySelectClassCollection.find().toArray()
+      res.send(result);
+    });
+
+
 
     // update class status
 
