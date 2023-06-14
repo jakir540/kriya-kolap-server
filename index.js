@@ -56,12 +56,16 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     const classCollection = client.db("yogaDB").collection("classes");
     const instructorsCollection = client.db("yogaDB").collection("instructors");
-    const instructorsCollectionFeedback = client.db("yogaDB").collection("instructorsFeedback");
+    const instructorsCollectionFeedback = client
+      .db("yogaDB")
+      .collection("instructorsFeedback");
     const usersCollection = client.db("yogaDB").collection("users");
-    const mySelectClassCollection = client.db("yogaDB").collection("mySelectClass");
+    const mySelectClassCollection = client
+      .db("yogaDB")
+      .collection("mySelectClass");
     const paymentsCollection = client.db("yogaDB").collection("payments");
 
     //jwt
@@ -116,7 +120,7 @@ async function run() {
     });
 
     // get all user from mongodb
-    app.get("/users", async (req, res) => {
+    app.get("/users", VerifyJwt,VerifyAdmin, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
@@ -165,7 +169,9 @@ async function run() {
     });
 
     // check instructor -------------------------------------
-    app.get("/users/instructor/:email",VerifyJwt,
+    app.get(
+      "/users/instructor/:email",
+      VerifyJwt,
       VerifyInstructor,
       async (req, res) => {
         const email = req.params.email;
@@ -201,19 +207,33 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
-
-    app.post("/classes", async (req, res) => {
+    // Add class use this api
+    app.post("/classes",VerifyJwt,VerifyInstructor, async (req, res) => {
       const newClass = req.body;
       const result = await classCollection.insertOne(newClass);
+      res.send(result);
+    });
+    // update class use this api
+    app.put("/classes/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateClass = req.body;
+      console.log(updateClass);
+      const result = await classCollection.updateOne(filter, {
+        $set: updateClass,
+      });
       res.send(result);
     });
 
     //my Select class api
     app.post("/mySelectClasses", async (req, res) => {
       const mySelectClass = req.body;
+      console.log({ mySelectClass });
       const result = await mySelectClassCollection.insertOne(mySelectClass);
       res.send(result);
     });
+
     //my Select class api
     app.get("/mySelectClasses", async (req, res) => {
       const result = await mySelectClassCollection.find().toArray();
@@ -265,16 +285,22 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/receivedInstructorsFeedback", async (req, res) => {
+      const result = await instructorsCollectionFeedback.find().toArray();
+
+      res.send(result);
+    });
+
     //send feedbak to instructor
 
-    app.post("/feedbackInstructor", async (req, res) => {
+    app.post("/feedbackInstructor", VerifyJwt, async (req, res) => {
       const feedback = req.body;
       const result = await instructorsCollectionFeedback.insertOne(feedback);
       res.send(result);
     });
 
     // payment api
-    app.post("/create-payment-intent", async (req, res) => {
+    app.post("/create-payment-intent",VerifyJwt, async (req, res) => {
       const price = req.body;
       const amount = parseInt(price.paymentPrice * 100);
       const paymentIntent = await stripe.paymentIntents.create({
@@ -287,15 +313,36 @@ async function run() {
       });
     });
 
-    app.post("/payments",async(req,res)=>{
+    //specific class get for payment
+    app.get("/classes/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await classCollection.findOne(filter);
+      res.send(result);
+    });
+
+    app.post("/payments", async (req, res) => {
       const payment = req.body;
-      const result = await paymentsCollection.insertOne(payment);
-      res.send(result)
-    })
+      const insertResult = await paymentsCollection.insertOne(payment);
+      console.log(payment.selectClass);
+      const filter = { _id: payment.selectClass };
+      const deleteClass = await mySelectClassCollection.deleteOne(filter);
 
+      console.log(deleteClass);
 
+      res.send({ insertResult, deleteClass });
+    });
 
+   
+    app.get("/paymentHistory", async (req, res) => {
+      const result = await paymentsCollection.find().sort({ date: -1 }).toArray();
+      res.send(result);
+    });
 
+    app.get("/payments", async (req, res) => {
+      const result = await paymentsCollection.find().toArray();
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
