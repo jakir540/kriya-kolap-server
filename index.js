@@ -397,7 +397,7 @@ async function run() {
 
         if (result.modifiedCount > 0) {
           res.redirect(
-            `http://localhost:5173/payment/success/${req.params.tranID}`
+            `https://kriya-kolap-sever-jakir540.vercel.app/payment/success/${req.params.tranID}`
           );
         }
       });
@@ -408,7 +408,7 @@ async function run() {
         });
         if (result.deletedCount) {
           res.redirect(
-            `http://localhost:5173/payment/fail/${req.params.tranID}`
+            `https://kriya-kolap-sever-jakir540.vercel.app/payment/fail/${req.params.tranID}`
           );
         }
       });
