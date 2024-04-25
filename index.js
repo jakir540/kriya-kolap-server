@@ -5,7 +5,19 @@ require("dotenv").config();
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5000;
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const {
+  MongoClient,
+  ServerApiVersion,
+  ObjectId,
+  Transaction,
+} = require("mongodb");
+
+//payment gatway system start
+const SSLCommerzPayment = require("sslcommerz-lts");
+
+const tran_id = new ObjectId().toString();
+
+//payment gatway system end
 
 // middleware
 const corsOptions = {
@@ -43,6 +55,14 @@ const VerifyJwt = (req, res, next) => {
 };
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.wkiarbk.mongodb.net/?retryWrites=true&w=majority`;
+
+//payment gatway system start
+
+const store_id = process.env.PAYMENT_STORE_ID;
+const store_passwd = process.env.PAYMENT_METHOD_KEY;
+const is_live = false;
+
+//payment gatway system end
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -120,7 +140,7 @@ async function run() {
     });
 
     // get all user from mongodb
-    app.get("/users", VerifyJwt,VerifyAdmin, async (req, res) => {
+    app.get("/users", VerifyJwt, VerifyAdmin, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
@@ -208,7 +228,7 @@ async function run() {
       res.send(result);
     });
     // Add class use this api
-    app.post("/classes",VerifyJwt,VerifyInstructor, async (req, res) => {
+    app.post("/classes", VerifyJwt, VerifyInstructor, async (req, res) => {
       const newClass = req.body;
       const result = await classCollection.insertOne(newClass);
       res.send(result);
@@ -300,7 +320,103 @@ async function run() {
     });
 
     // payment api
-    app.post("/create-payment-intent",VerifyJwt, async (req, res) => {
+    // =============================================================================
+    //payment
+
+    app.post("/order", async (req, res) => {
+      console.log(req.body);
+      console.log(req.body.classId);
+
+      const singleClass = await classCollection.findOne({
+        _id: new ObjectId(req.body.classId),
+      });
+      console.log({ singleClass });
+
+      const order = req.body;
+
+      const data = {
+        total_amount: singleClass?.price,
+        currency: "BDT",
+        tran_id: tran_id, // use unique tran_id for each api call
+        success_url: `http://localhost:5000/payment/success/${tran_id}`,
+        fail_url: `http://localhost:5000/payment/fail/${tran_id}`,
+        cancel_url: "http://localhost:3030/cancel",
+        ipn_url: "http://localhost:3030/ipn",
+        shipping_method: "Courier",
+        product_name: singleClass?.classname,
+        product_category: "Electronic",
+        product_profile: "general",
+        cus_name: "Customer Name",
+        cus_email: singleClass?.email,
+        cus_add1: "Dhaka",
+        cus_add2: "Dhaka",
+        cus_city: "Dhaka",
+        cus_state: "Dhaka",
+        cus_postcode: order?.PostCode,
+        cus_country: "Bangladesh",
+        cus_phone: "01711111111",
+        cus_fax: "01711111111",
+        ship_name: "Customer Name",
+        ship_add1: "Dhaka",
+        ship_add2: "Dhaka",
+        ship_city: "Dhaka",
+        ship_state: "Dhaka",
+        ship_postcode: 1000,
+        ship_country: "Bangladesh",
+      };
+      console.log(data);
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      sslcz.init(data).then((apiResponse) => {
+        // Redirect the user to payment gateway
+        let GatewayPageURL = apiResponse.GatewayPageURL;
+        res.send({ url: GatewayPageURL });
+
+        const finalOrder = {
+          singleClass,
+          paidStatus: false,
+          transactionId: tran_id,
+        };
+        const result = paymentsCollection.insertOne(finalOrder);
+
+        console.log("Redirecting to: ", GatewayPageURL);
+      });
+
+      app.post("/payment/success/:tranID", async (req, res) => {
+        console.log("from backedn bKASH" + req.params.tranID);
+
+        const result = await paymentsCollection.updateOne(
+          {
+            transactionId: req.params.tranID,
+          },
+          {
+            $set: {
+              paidStatus: true,
+            },
+          }
+        );
+
+        if (result.modifiedCount > 0) {
+          res.redirect(
+            `http://localhost:5173/payment/success/${req.params.tranID}`
+          );
+        }
+      });
+
+      app.post("/payment/fail/:tranID", async (req, res) => {
+        const result = await paymentsCollection.deleteOne({
+          transactionId: req.params.tranID,
+        });
+        if (result.deletedCount) {
+          res.redirect(
+            `http://localhost:5173/payment/fail/${req.params.tranID}`
+          );
+        }
+      });
+    });
+
+    //payment
+    // ====================================================================================
+    app.post("/create-payment-intent", VerifyJwt, async (req, res) => {
       const price = req.body;
       const amount = parseInt(price.paymentPrice * 100);
       const paymentIntent = await stripe.paymentIntents.create({
@@ -333,9 +449,11 @@ async function run() {
       res.send({ insertResult, deleteClass });
     });
 
-   
     app.get("/paymentHistory", async (req, res) => {
-      const result = await paymentsCollection.find().sort({ date: -1 }).toArray();
+      const result = await paymentsCollection
+        .find()
+        .sort({ date: -1 })
+        .toArray();
       res.send(result);
     });
 
