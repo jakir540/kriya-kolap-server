@@ -79,6 +79,7 @@ async function run() {
     // await client.connect();
     const classCollection = client.db("yogaDB").collection("classes");
     const instructorsCollection = client.db("yogaDB").collection("instructors");
+    const blogCollection = client.db("yogaDB").collection("blogs");
     const instructorsCollectionFeedback = client
       .db("yogaDB")
       .collection("instructorsFeedback");
@@ -319,6 +320,21 @@ async function run() {
       res.send(result);
     });
 
+    // blog api
+
+    // create blog
+
+    app.post("/blog", async (req, res) => {
+      const newBlogs = req.body;
+      const result = await blogCollection.insertOne(newBlogs);
+      res.send(result);
+    });
+    // get all blogs
+    app.get("/blogs", async (req, res) => {
+      const result = await blogCollection.find().toArray();
+      res.send(result);
+    });
+
     // payment api
     // =============================================================================
     //payment
@@ -338,8 +354,10 @@ async function run() {
         total_amount: singleClass?.price,
         currency: "BDT",
         tran_id: tran_id, // use unique tran_id for each api call
-        success_url: `http://localhost:5000/payment/success/${tran_id}`,
-        fail_url: `http://localhost:5000/payment/fail/${tran_id}`,
+        success_url: `http://localhost:5173/payment/success`,
+        // success_url: `https://kriya-kolap-sever-jakir540.vercel.app/payment/success/${tran_id}`,
+        fail_url: `http://localhost:5173/payment/fail/${tran_id}`,
+        // fail_url: `https://kriya-kolap-sever-jakir540.vercel.app/payment/fail/${tran_id}`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
@@ -397,7 +415,8 @@ async function run() {
 
         if (result.modifiedCount > 0) {
           res.redirect(
-            `https://kriya-kolap-sever-jakir540.vercel.app/payment/success/${req.params.tranID}`
+            // `http://localhost:5173/payment/success/${req.params.tranID}`
+            "/"
           );
         }
       });
@@ -408,7 +427,7 @@ async function run() {
         });
         if (result.deletedCount) {
           res.redirect(
-            `https://kriya-kolap-sever-jakir540.vercel.app/payment/fail/${req.params.tranID}`
+            `http://localhost:5173/payment/fail/${req.params.tranID}`
           );
         }
       });
