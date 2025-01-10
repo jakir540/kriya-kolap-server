@@ -1,5 +1,9 @@
 const express = require("express");
+
+// Middleware to parse incoming JSON requests
+
 const app = express();
+app.use(express.json());
 const cors = require("cors");
 require("dotenv").config();
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
@@ -325,14 +329,45 @@ async function run() {
     // create blog
 
     app.post("/blog", async (req, res) => {
+      if (!req.body || Object.keys(req.body).length === 0) {
+        return res.status(400).send({ error: "Request body is empty" });
+      }
+
       const newBlogs = req.body;
       const result = await blogCollection.insertOne(newBlogs);
       res.send(result);
     });
+
     // get all blogs
     app.get("/blogs", async (req, res) => {
       const result = await blogCollection.find().toArray();
       res.send(result);
+    });
+
+    //get single blog
+
+    const { ObjectId } = require("mongodb");
+
+    app.get("/blogs/:id", async (req, res) => {
+      const id = req.params.id;
+
+      // Ensure the id is a valid ObjectId
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).send({ error: "Invalid ID format" });
+      }
+
+      // Create a new ObjectId instance using `new`
+      const objectId = new ObjectId(id);
+
+      // Query MongoDB using the ObjectId
+      const result = await blogCollection.findOne({ _id: objectId });
+
+      // Send the result back
+      if (result) {
+        res.send(result);
+      } else {
+        res.status(404).send({ error: "Blog not found" });
+      }
     });
 
     // payment api
