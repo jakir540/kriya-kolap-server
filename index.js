@@ -228,10 +228,53 @@ async function run() {
 
     // form admin page all classes
     app.get("/instructor/classes", async (req, res) => {
+      const email = req.query.email;
+      console.log(email);
       const cursor = classCollection.find();
       const result = await cursor.toArray();
+
+      try {
+        const result = await classCollection.find({ email: email }).toArray();
+      } catch (error) {
+        console.error("Error fetching instructor classes:", error);
+      }
+
       res.send(result);
     });
+
+    // // get specific classes in instructor
+    // app.get("/instructor/ownclasses", async (req, res) => {
+    //   const email = req.query.email; // Get the email from query parameters
+    //   console.log(email);
+
+    //   if (!email) {
+    //     return res
+    //       .status(400)
+    //       .send({ error: "Email query parameter is required" });
+    //   }
+
+    //   try {
+    //     const result = await classCollection
+    //       .find({ instructorEmail: email })
+    //       .toArray(); // Filter classes by instructor email
+
+    //     console.log("249 classes ", result);
+
+    //     if (result.length === 0) {
+    //       return res
+    //         .status(404)
+    //         .send({ message: "No classes found for the provided email" });
+    //     }
+
+    //     res.send(result);
+    //   } catch (error) {
+    //     console.error("Error fetching instructor classes:", error);
+    //     res
+    //       .status(500)
+    //       .send({ error: "An error occurred while fetching classes" });
+    //   }
+    // });
+
     // Add class use this api
     app.post("/classes", VerifyJwt, VerifyInstructor, async (req, res) => {
       const newClass = req.body;
@@ -303,10 +346,13 @@ async function run() {
       res.send(result);
     });
 
+    // ******************************************************************
+
     //instructors api
     app.get("/instructors", async (req, res) => {
       const cursor = instructorsCollection.find();
       const result = await cursor.toArray();
+      // console.log({result})
       res.send(result);
     });
 
@@ -324,6 +370,7 @@ async function run() {
       res.send(result);
     });
 
+    // ******************************************************************
     // blog api
 
     // create blog
