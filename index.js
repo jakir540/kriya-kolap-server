@@ -235,6 +235,16 @@ async function run() {
 
       try {
         const result = await classCollection.find({ email: email }).toArray();
+
+        console.log("249 classes ", result);
+
+        if (result.length === 0) {
+          return res.send({
+            message: "No classes found for the provided email",
+          });
+        }
+
+        res.send(result);
       } catch (error) {
         console.error("Error fetching instructor classes:", error);
       }
