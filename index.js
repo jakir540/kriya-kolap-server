@@ -4,11 +4,14 @@ const express = require("express");
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 const cors = require("cors");
 require("dotenv").config();
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5000;
+
 const {
   MongoClient,
   ServerApiVersion,
@@ -236,7 +239,7 @@ async function run() {
       try {
         const result = await classCollection.find({ email: email }).toArray();
 
-        console.log("249 classes ", result);
+        console.log("249 classes ", result.length);
 
         if (result.length === 0) {
           return res.send({
@@ -397,8 +400,13 @@ async function run() {
 
     // get all blogs
     app.get("/blogs", async (req, res) => {
-      const result = await blogCollection.find().toArray();
-      res.send(result);
+      try {
+        const result = await blogCollection.find().toArray();
+        res.json(result); // Use res.json() instead of res.send() for safe JSON response
+      } catch (error) {
+        console.error("Error fetching blogs:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
     });
 
     //get single blog
